@@ -2,7 +2,7 @@
 name = "virttop"
 version = "0.1.0"
 description = "A top like utility for libvirt"
-authors = ["terminaldwelelr <devi@terminaldweller.com>"]
+authors = ["terminaldweller <devi@terminaldweller.com>"]
 license = "GPL-3.0"
 readme = "README.md"
 homepage = "https://github.com/terminaldweller/virttop"
@@ -19,7 +19,7 @@ packages = [
 ]
 
 [tool.poetry.scripts]
-tunneltop = "virttop.virttop:main"
+virttop = "virttop.virttop:main"
 
 [tool.poetry.dependencies]
 python = "^3.11"
