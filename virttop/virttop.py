@@ -363,8 +363,9 @@ def read_config(config_path) -> ConfigData:
     return config_data
 
 
-def curses_init() -> None:
+def curses_init():
     """Initialize ncurses."""
+    stdscr = curses.initscr()
     curses.start_color()
     curses.use_default_colors()
     curses.curs_set(False)
@@ -372,6 +373,7 @@ def curses_init() -> None:
     curses.cbreak()
     stdscr.keypad(True)
     curses.halfdelay(4)
+    return stdscr
 
 
 def init_color_pairs(config_data: ConfigData) -> None:
@@ -400,14 +402,14 @@ def get_visible_rows(max_rows: int, sel: int) -> typing.Tuple[int, int]:
     return win_min_row, win_max_row
 
 
-async def main() -> None:
-    """entrypoint"""
+async def main_loop() -> None:
+    """Main TUI loop."""
     sel: int = 0
     current_row: int = 0
     current_visi: int = 0
     vm_name_ordered_list: typing.List[str] = []
 
-    curses_init()
+    stdscr = curses_init()
     signal.signal(signal.SIGINT, sig_handler_sigint)
     argparser = Argparser()
     config_data = read_config(argparser.args.config)
@@ -422,7 +424,6 @@ async def main() -> None:
                 request_cred,
                 None,
             ]
-            # conn = libvirt.openAuth(hv_host, auth, libvirt.VIR_CONNECT_RO)
             conn = libvirt.openAuth(hv_host, auth, 0)
             hosts = conn.listAllDomains()
             if len(hosts) > 0:
@@ -537,12 +538,16 @@ async def main() -> None:
         stdscr.refresh()
 
 
-# FIXME- the finally wipes the screen, effectively rendering the help option useless
-if __name__ == "__main__":
-    stdscr = curses.initscr()
+def main() -> None:
+    """Entry point."""
     try:
-        asyncio.run(main())
+        asyncio.run(main_loop())
     except Exception as e:
         print(e)
     finally:
         do_cleanup()
+
+
+# FIXME- the finally wipes the screen, effectively rendering the help option useless
+if __name__ == "__main__":
+    main()
