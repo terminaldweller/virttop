@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "virttop"
-version = "0.2.1"
+version = "0.2.2"
 description = "A top like utility for libvirt"
 authors = ["terminaldweller <devi@terminaldweller.com>"]
 license = "GPL-3.0"

@@ -10,6 +10,8 @@ import asyncio
 import csv
 import curses
 import dataclasses
+import functools
+import logging
 import os
 import signal
 import sys
@@ -35,7 +37,7 @@ def request_cred(credentials, sasl_user, sasl_pass):
     return 0
 
 
-def do_cleanup():
+def do_cleanup(stdscr):
     """Return the terminal to a sane state."""
     curses.nocbreak()
     stdscr.keypad(False)
@@ -45,9 +47,9 @@ def do_cleanup():
 
 
 # pylint: disable=unused-argument
-def sig_handler_sigint(signum, frame):
+def sig_handler_sigint(signum, frame, stdscr):
     """Just to handle C-c cleanly"""
-    do_cleanup()
+    do_cleanup(stdscr)
     sys.exit(0)
 
 
@@ -79,11 +81,11 @@ class Argparser:  # pylint: disable=too-few-public-methods
             default=False,
         )
         self.parser.add_argument(
-            "--debug",
-            "-d",
-            type=bool,
-            help="Turn on debug logging",
-            default=False,
+            "--logfile",
+            "-l",
+            type=str,
+            help="Location of the log file",
+            default="~/.virttop.log",
         )
 
         self.args = self.parser.parse_args()
@@ -176,7 +178,6 @@ def get_disk_info(
 
 
 # pylint: disable=too-many-locals
-# pylint: disable=too-many-branches
 def ffs(
     offset: int,
     header_list: typing.Optional[typing.List[str]],
@@ -318,8 +319,12 @@ def fill_virt_data_uri(
             if not found_the_pool:
                 virt_data.memory_pool.append("N/A")
 
-            disk_info = get_disk_info(xml_doc)
-            image_name = disk_info["file"]
+            try:
+                disk_info = get_disk_info(xml_doc)
+                image_name = disk_info["file"]
+            except Exception as exception:
+                image_name = "X"
+                logging.exception(exception)
             if host.ID() >= 0:
                 _, rd_bytes, _, wr_bytes, _ = dom.blockStats(image_name)
                 virt_data.disk_reads.append(size_abr(rd_bytes, 1))
@@ -336,7 +341,8 @@ def fill_virt_data_uri(
                 virt_data.disk_writes.append("-")
                 virt_data.macs.append("-")
                 virt_data.ips.append("-")
-        except:
+        except Exception as exception:
+            logging.exception(exception)
             pass
 
 
@@ -402,16 +408,48 @@ def get_visible_rows(max_rows: int, sel: int) -> typing.Tuple[int, int]:
     return win_min_row, win_max_row
 
 
-async def main_loop() -> None:
+async def start_domain(dom):
+    """Start a domain."""
+    try:
+        task = asyncio.create_task(dom.createWithFlags())
+        await asyncio.sleep(0)
+        return task
+    except Exception as exception:
+        logging.exception(exception)
+
+
+async def destroy_domain(dom):
+    """Destroy a domain gracefully."""
+    try:
+        task = asyncio.create_task(
+            dom.destroyFlags(flags=libvirt.VIR_DOMAIN_DESTROY_GRACEFUL)
+        )
+        await asyncio.sleep(0)
+        return task
+    except Exception as exception:
+        logging.exception(exception)
+
+
+async def shutdown_domain(dom):
+    """Shutdown a domain."""
+    try:
+        task = asyncio.create_task(dom.shutdownFlags())
+        await asyncio.sleep(0)
+        return task
+    except Exception as exception:
+        logging.exception(exception)
+
+
+async def main_loop(argparser, stdscr) -> None:
     """Main TUI loop."""
     sel: int = 0
     current_row: int = 0
     current_visi: int = 0
     vm_name_ordered_list: typing.List[str] = []
+    task_list: typing.List[asyncio.Task] = []
 
-    stdscr = curses_init()
-    signal.signal(signal.SIGINT, sig_handler_sigint)
-    argparser = Argparser()
+    sigint_handler = functools.partial(sig_handler_sigint, stdscr=stdscr)
+    signal.signal(signal.SIGINT, sigint_handler)
     config_data = read_config(argparser.args.config)
     arp_table = get_arp_table()
     init_color_pairs(config_data)
@@ -525,29 +563,40 @@ async def main_loop() -> None:
             break
         elif char == ord("d"):
             dom = conn.lookupByName(vm_name_ordered_list[sel])
-            dom.destroyFlags(flags=libvirt.VIR_DOMAIN_DESTROY_GRACEFUL)
+            logging.debug("shutting down domain %s", vm_name_ordered_list[sel])
+            task_list.append(await destroy_domain(dom))
         elif char == ord("s"):
             dom = conn.lookupByName(vm_name_ordered_list[sel])
-            dom.shutdownFlags()
+            logging.debug("shutting down domain %s", vm_name_ordered_list[sel])
+            task_list.append(await shutdown_domain(dom))
         elif char == ord("r"):
             dom = conn.lookupByName(vm_name_ordered_list[sel])
-            dom.createWithFlags()
+            logging.debug("shutting down domain %s", vm_name_ordered_list[sel])
+            task_list.append(await start_domain(dom))
         else:
             pass
 
         stdscr.refresh()
+        vm_name_ordered_list = []
 
 
 def main() -> None:
     """Entry point."""
     try:
-        asyncio.run(main_loop())
-    except Exception as e:
-        print(e)
-    finally:
-        do_cleanup()
+        argparser = Argparser()
+        stdscr = curses_init()
+        logging.basicConfig(
+            filename=os.path.expanduser(argparser.args.logfile),
+            filemode="w",
+            format="%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s",
+            datefmt="%H:%M:%S",
+            level=logging.DEBUG,
+        )
+        asyncio.run(main_loop(argparser, stdscr))
+    except Exception as exception:
+        logging.exception(exception)
+        do_cleanup(stdscr)
 
 
-# FIXME- the finally wipes the screen, effectively rendering the help option useless
 if __name__ == "__main__":
     main()

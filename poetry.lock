@@ -8,7 +8,7 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 
 [[package]]
 name = "libvirt-python"
-version = "9.0.0"
+version = "9.1.0"
 description = "The libvirt virtualization API python binding"
 category = "main"
 optional = false
@@ -25,5 +25,5 @@ defusedxml = [
     {file = "defusedxml-0.7.1.tar.gz", hash = "sha256:1bb3032db185915b62d7c6209c5a8792be6a32ab2fedacc84e01b52c51aa3e69"},
 ]
 libvirt-python = [
-    {file = "libvirt-python-9.0.0.tar.gz", hash = "sha256:49702d33fa8cbcae19fa727467a69f7ae2241b3091324085ca1cc752b2b414ce"},
+    {file = "libvirt-python-9.1.0.tar.gz", hash = "sha256:6f98d235db975a33ff5e6fc09be566a00d22398039d411f34220384c05590ba4"},
 ]

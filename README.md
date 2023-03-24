@@ -1,12 +1,28 @@
 # virttop
 a top like utility for libvirt
 
-
 ![Image](virttop.png)
 
 ## How to get
 ```sh
 pip install virttop
+```
+
+## Options
+```sh
+usage: virttop.py [-h] [--uri URI [URI ...]] [--config CONFIG]
+                  [--active ACTIVE] [--logfile LOGFILE]
+
+options:
+  -h, --help            show this help message and exit
+  --uri URI [URI ...], -u URI [URI ...]
+                        A list of URIs to connect to seperated by commas
+  --config CONFIG, -c CONFIG
+                        Path to the config file
+  --active ACTIVE, -a ACTIVE
+                        Show active VMs only
+  --logfile LOGFILE, -l LOGFILE
+                        Location of the log file
 ```
 
 ## Configfile
@@ -28,9 +44,14 @@ selected_bg=36
 
 ## Keybindings
 
-`j` and `k` and arrow keys move up and down.</br>
-`g` moves to the top of the list.</br>
-`G` moved to the bottom of the list.</br>
-`r` runs an inactive domain.</br>
-`s` shuts down a running domain.</br>
-`d` destroy a running domain.</br>
+`j`,`k` and arrow keys move up and down.
+
+`g` moves to the top of the list.
+
+`G` moves to the bottom of the list.
+
+`r` runs an inactive domain.
+
+`s` shuts down a running domain.
+
+`d` destroys a running domain.
