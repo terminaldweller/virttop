@@ -310,6 +310,8 @@ def fill_virt_data_uri(
             found_the_pool: bool = False
             disk = tree.find("devices/disk/source").get("file")
             for pool in virt_data.pools:
+                if not pool.isActive():
+                    continue
                 if os.path.basename(disk) in pool.listVolumes():
                     virt_data.memory_pool.append(pool.name())
                     found_the_pool = True
@@ -343,7 +345,6 @@ def fill_virt_data_uri(
                 virt_data.ips.append("-")
         except Exception as exception:
             logging.exception(exception)
-            pass
 
 
 def read_config(config_path) -> ConfigData:
