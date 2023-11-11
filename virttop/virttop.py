@@ -87,6 +87,12 @@ class Argparser:  # pylint: disable=too-few-public-methods
             help="Location of the log file",
             default="~/.virttop.log",
         )
+        self.parser.add_argument(
+            "--columns",
+            type=str,
+            help="Location of the log file",
+            default="~/.virttop.log",
+        )
 
         self.args = self.parser.parse_args()
 
@@ -309,12 +315,13 @@ def fill_virt_data_uri(
 
             found_the_pool: bool = False
             disk = tree.find("devices/disk/source").get("file")
-            for pool in virt_data.pools:
-                if not pool.isActive():
-                    continue
-                if os.path.basename(disk) in pool.listVolumes():
-                    virt_data.memory_pool.append(pool.name())
-                    found_the_pool = True
+            if disk:
+                for pool in virt_data.pools:
+                    if not pool.isActive():
+                        continue
+                    if os.path.basename(disk) in pool.listVolumes():
+                        virt_data.memory_pool.append(pool.name())
+                        found_the_pool = True
             # you could delete the pool but keep the volumes inside
             # which results in a functional VM but it wont have a
             # volume inside a pool that we can detect
@@ -325,24 +332,31 @@ def fill_virt_data_uri(
                 disk_info = get_disk_info(xml_doc)
                 image_name = disk_info["file"]
             except Exception as exception:
-                image_name = "X"
+                image_name = ""
                 logging.exception(exception)
-            if host.ID() >= 0:
-                _, rd_bytes, _, wr_bytes, _ = dom.blockStats(image_name)
-                virt_data.disk_reads.append(size_abr(rd_bytes, 1))
-                virt_data.disk_writes.append(size_abr(wr_bytes, 1))
+            try:
+                if host.ID() >= 0:
+                    _, rd_bytes, _, wr_bytes, _ = dom.blockStats(image_name)
+                    virt_data.disk_reads.append(size_abr(rd_bytes, 1))
+                    virt_data.disk_writes.append(size_abr(wr_bytes, 1))
 
-                network_info = get_network_info(xml_doc)
-                virt_data.macs.append(network_info["address"])
-                # TODO-this is obviously not going to work for remote URIs
-                virt_data.ips.append(
-                    get_ip_from_arp_table(arp_table, network_info["address"])
-                )
-            else:
+                    network_info = get_network_info(xml_doc)
+                    virt_data.macs.append(network_info["address"])
+                    # TODO-this is obviously not going to work for remote URIs
+                    virt_data.ips.append(
+                        get_ip_from_arp_table(arp_table, network_info["address"])
+                    )
+                else:
+                    virt_data.disk_reads.append("-")
+                    virt_data.disk_writes.append("-")
+                    virt_data.macs.append("-")
+                    virt_data.ips.append("-")
+            except Exception as exception:
                 virt_data.disk_reads.append("-")
                 virt_data.disk_writes.append("-")
                 virt_data.macs.append("-")
                 virt_data.ips.append("-")
+                logging.exception(exception)
         except Exception as exception:
             logging.exception(exception)
 
@@ -596,6 +610,7 @@ def main() -> None:
         asyncio.run(main_loop(argparser, stdscr))
     except Exception as exception:
         logging.exception(exception)
+    finally:
         do_cleanup(stdscr)
 
 
